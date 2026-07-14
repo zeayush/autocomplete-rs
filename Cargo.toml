@@ -1,0 +1,51 @@
+[package]
+name = "autocomplete-rs"
+version = "0.1.0"
+edition = "2021"
+authors = ["zeayush"]
+description = "Fast autocomplete engine with a compressed trie, typo tolerance, and multi-tenant namespaces."
+license = "MIT"
+
+[dependencies]
+# async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["trace", "timeout"] }
+
+# storage
+rocksdb = "0.22"
+
+# concurrency helpers
+dashmap = "6"
+parking_lot = "0.12"
+
+# serde / json
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# error handling
+thiserror = "1"
+anyhow = "1"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["async_tokio"] }
+proptest = "1"
+
+[[bench]]
+name = "trie_bench"
+harness = false
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+debug = 1  # keep symbols for perf profiling
+
+# HINT: run `cargo add rocksdb --features multi-threaded-cf` if you want
+# background compaction to not stall your write task.
