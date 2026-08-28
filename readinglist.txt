@@ -1,0 +1,87 @@
+autocomplete-rs — reading list
+==============================
+
+Compiled 2026-08-28. Note: this is a freshly assembled list, not a recovery of
+any earlier one — no prior list was found in this repo, its git history, or the
+local session records.
+
+Context: this project is Ch. 13, "Design a Search Autocomplete System", from
+Alex Xu's System Design Interview Vol. 1, built as part of
+system-design-from-scratch. The items below are ordered by what unblocks
+implementation first, and mapped to the files they apply to.
+
+
+0. START HERE — the chapter itself
+----------------------------------
+  * Alex Xu, "System Design Interview" Vol. 1, Ch. 13.
+    Sets the frame: trie + top-k cached at nodes + sharding.
+
+
+1. COMPRESSED TRIE                    -> src/trie/radix_trie.rs, src/trie/node.rs
+--------------------------------------------------------------------------------
+  * Morrison (1968), "PATRICIA — Practical Algorithm To Retrieve Information
+    Coded In Alphanumeric".
+    The original radix tree paper. Edge-splitting is the whole trick that the
+    common_prefix_len helper in node.rs exists to support.
+
+  * Sedgewick & Wayne, "Algorithms" 4th ed., section 5.2 (Tries / TSTs).
+
+  * Source of the `radix_trie` and `qp-trie` crates.
+    Short, idiomatic Rust — a good shape to borrow from.
+
+
+2. TYPO TOLERANCE                                            -> src/typo.rs
+---------------------------------------------------------------------------
+  * Steve Hanov, "Fast and Easy Levenshtein Distance Using a Trie" (blog).
+    READ THIS FIRST. It is precisely the DP-row-over-trie method that the
+    "Levenshtein DP row transitions" hint in typo.rs describes.
+
+  * Schulz & Mihov (2002), "Fast String Correction with Levenshtein Automata".
+    The rigorous version, if you want the automaton approach instead.
+
+
+3. TOP-K SELECTION                                        -> src/scoring.rs
+---------------------------------------------------------------------------
+  * The bounded min-heap already sketched in scoring.rs is the right call.
+  * For background on the alternative: Fagin's Threshold Algorithm (TA/NRA)
+    for top-k over ranked lists.
+
+
+4. PERSISTENCE                                      -> src/storage/rocks.rs
+---------------------------------------------------------------------------
+  * O'Neil, Cheng, Gawlick & O'Neil (1996), "The Log-Structured Merge-Tree".
+    Explains why RocksDB behaves the way it does.
+
+  * RocksDB wiki: Basic Operations, Column Families, WriteBatch, Tuning Guide.
+    Column families matter for the multi-tenant key encoding in rocks.rs.
+
+  * rust-rocksdb crate docs.
+
+
+5. ASYNC PLUMBING                     -> src/storage/writer.rs, src/api/
+------------------------------------------------------------------------
+  * Alice Ryhl, "Actors with Tokio".
+    Directly the pattern for the batched-writer task over mpsc in writer.rs.
+
+  * The Tokio tutorial (tokio.rs/tokio/tutorial).
+
+  * axum docs and examples — State, extractors, IntoResponse.
+
+
+6. HITTING THE p99 < 5ms TARGET                     -> benches/trie_bench.rs
+---------------------------------------------------------------------------
+  * The Criterion.rs book.
+
+  * Brendan Gregg, "Systems Performance" — the chapters on latency
+    percentiles and flame graphs.
+
+
+7. HOW PRODUCTION SYSTEMS DO IT
+-------------------------------
+  * Cai & de Rijke (2016), "A Survey of Query Auto Completion in Information
+    Retrieval". The survey — read for breadth.
+
+  * Mihov & Maurel, "Direct Construction of Minimal Acyclic Subsequential
+    Transducers". The FST behind Lucene / Elasticsearch's completion
+    suggester — where to go if the trie's memory footprint becomes the
+    binding constraint.

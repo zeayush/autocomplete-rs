@@ -42,7 +42,8 @@ pub struct Hit {
 
 pub async fn health() -> impl IntoResponse {
     // HINT: return `Json(json!({"status": "ok"}))` or a static &str.
-    todo!()
+    let body: &'static str = todo!();
+    body
 }
 
 pub async fn index(

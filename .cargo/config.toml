@@ -1,0 +1,7 @@
+# Build env for this machine (Rocky Linux 9, no root).
+# librocksdb-sys / zstd-sys run bindgen, which needs libclang plus a set of
+# builtin C headers. libclang comes from the pip `libclang` wheel; the headers
+# come from gcc, since the wheel ships no resource dir of its own.
+[env]
+LIBCLANG_PATH = "/home/ayush/.local/lib/python3.9/site-packages/clang/native"
+BINDGEN_EXTRA_CLANG_ARGS = "-I/usr/lib/gcc/x86_64-redhat-linux/11/include"
