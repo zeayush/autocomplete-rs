@@ -3,7 +3,7 @@
 //! Public surface is intentionally thin: callers usually go through
 //! [`engine::Engine`] (in-process) or the HTTP API in [`api`].
 //!
-//! HINT: keep this file mostly re-exports. Real logic lives in submodules.
+//! This file stays re-exports only; the logic lives in the submodules.
 
 pub mod api;
 pub mod engine;

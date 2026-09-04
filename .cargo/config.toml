@@ -5,3 +5,11 @@
 [env]
 LIBCLANG_PATH = "/home/ayush/.local/lib/python3.9/site-packages/clang/native"
 BINDGEN_EXTRA_CLANG_ARGS = "-I/usr/lib/gcc/x86_64-redhat-linux/11/include"
+
+# `cc`/`gcc` here is a locally installed GCC 9.4.0, but `c++` — which the cc
+# crate uses to compile RocksDB — is the distro's GCC 11. Linking GCC 11 C++
+# objects against GCC 9's libstdc++ leaves __throw_bad_array_new_length and the
+# exception_ptr refcount helpers undefined, so rustc has to link with the
+# matching GCC 11 driver rather than the default `cc`.
+[target.x86_64-unknown-linux-gnu]
+linker = "x86_64-redhat-linux-gcc-11"

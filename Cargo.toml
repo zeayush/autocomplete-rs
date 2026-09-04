@@ -37,6 +37,10 @@ anyhow = "1"
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_tokio"] }
 proptest = "1"
+# Hermetic RocksDB directories for the integration tests.
+tempfile = "3"
+# Deterministic corpora for the benchmarks.
+rand = "0.9"
 
 [[bench]]
 name = "trie_bench"
@@ -46,6 +50,3 @@ harness = false
 lto = "thin"
 codegen-units = 1
 debug = 1  # keep symbols for perf profiling
-
-# HINT: run `cargo add rocksdb --features multi-threaded-cf` if you want
-# background compaction to not stall your write task.

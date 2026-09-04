@@ -1,6 +1,6 @@
 //! axum handlers. Keep them thin — pure translation between HTTP and Engine.
 
-use crate::Engine;
+use crate::{Engine, Result};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -31,6 +31,13 @@ pub struct QueryParams {
 
 fn default_k() -> usize { 10 }
 
+/// Beyond this the fuzzy walk stops pruning usefully and starts scanning the
+/// whole trie, which would blow the latency budget.
+const MAX_TYPO_BUDGET: u32 = 2;
+
+/// Bounds the response size so one caller cannot ask for the whole corpus.
+const MAX_K: usize = 100;
+
 #[derive(Serialize)]
 pub struct Hit {
     pub term: String,
@@ -40,42 +47,74 @@ pub struct Hit {
     pub distance: Option<u32>,
 }
 
-pub async fn health() -> impl IntoResponse {
-    // HINT: return `Json(json!({"status": "ok"}))` or a static &str.
-    let body: &'static str = todo!();
-    body
+#[derive(Serialize)]
+pub struct Health {
+    pub status: &'static str,
+    pub tenants: Vec<TenantHealth>,
+}
+
+#[derive(Serialize)]
+pub struct TenantHealth {
+    pub tenant: String,
+    #[serde(flatten)]
+    pub stats: crate::trie::TrieStats,
+}
+
+pub async fn health(State(engine): State<Arc<Engine>>) -> impl IntoResponse {
+    Json(Health {
+        status: "ok",
+        tenants: engine
+            .stats()
+            .into_iter()
+            .map(|(tenant, stats)| TenantHealth { tenant, stats })
+            .collect(),
+    })
 }
 
 pub async fn index(
     State(engine): State<Arc<Engine>>,
     Path(tenant): Path<String>,
     Json(body): Json<IndexBody>,
-) -> impl IntoResponse {
-    // HINT: engine.index(&tenant, &body.term, body.weight).await
-    //       → map Ok to StatusCode::ACCEPTED
-    //       → map Err to (StatusCode::BAD_REQUEST, message)
-    let _ = (engine, tenant, body);
-    (StatusCode::NOT_IMPLEMENTED, "todo")
+) -> Result<impl IntoResponse> {
+    engine.index(&tenant, &body.term, body.weight).await?;
+    // 202: the trie is already updated, but durability is still in flight.
+    Ok(StatusCode::ACCEPTED)
 }
 
 pub async fn query(
     State(engine): State<Arc<Engine>>,
     Path(tenant): Path<String>,
     Query(params): Query<QueryParams>,
-) -> impl IntoResponse {
-    // HINT: branch on params.typo:
-    //   0 → engine.query(...) → Vec<(term, score)>
-    //   n → engine.query_fuzzy(..., n, k) → Vec<(term, score, dist)>
-    // Serialize to Vec<Hit> and return Json.
-    let _ = (engine, tenant, params);
-    (StatusCode::NOT_IMPLEMENTED, "todo")
+) -> Result<impl IntoResponse> {
+    if params.typo > MAX_TYPO_BUDGET {
+        return Err(crate::Error::Invalid(format!(
+            "typo budget must be 0..={MAX_TYPO_BUDGET}, got {}",
+            params.typo
+        )));
+    }
+    let k = params.k.min(MAX_K);
+
+    let hits: Vec<Hit> = if params.typo == 0 {
+        engine
+            .query(&tenant, &params.prefix, k)
+            .into_iter()
+            .map(|(term, score)| Hit { term, score, distance: None })
+            .collect()
+    } else {
+        engine
+            .query_fuzzy(&tenant, &params.prefix, params.typo, k)
+            .into_iter()
+            .map(|(term, score, distance)| Hit { term, score, distance: Some(distance) })
+            .collect()
+    };
+
+    Ok(Json(hits))
 }
 
 pub async fn delete(
     State(engine): State<Arc<Engine>>,
     Path((tenant, term)): Path<(String, String)>,
-) -> impl IntoResponse {
-    // HINT: engine.delete(&tenant, &term).await → 204 No Content on success.
-    let _ = (engine, tenant, term);
-    (StatusCode::NOT_IMPLEMENTED, "todo")
+) -> Result<impl IntoResponse> {
+    engine.delete(&tenant, &term).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
